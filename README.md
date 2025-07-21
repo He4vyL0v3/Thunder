@@ -1,6 +1,8 @@
 # Thunder
 
-Thunder is a multi-threaded HTTP load testing tool designed for stress-testing web services. It supports proxy rotation, automatic method detection (GET/POST), and provides real-time progress feedback. This tool is intended for developers and security researchers to test the resilience of their own services.
+![alt text](data/1.png)
+
+> Thunder is a multi-threaded HTTP load testing tool designed for stress-testing web services. It supports proxy rotation, automatic method detection (GET/POST), and provides real-time progress feedback. This tool is intended for developers and security researchers to test the resilience of their own services.
 
 ## Usage
 Run the tool from the command line:
@@ -15,7 +17,7 @@ python src/main.py <target_url> [options]
 
 ### Example
 ```sh
-python src/main.py http://example.com -p 5000 -t 10
+python src/main.py https://example.com -p 5000 -t 10
 ```
 
 ## Proxy Support
@@ -30,7 +32,10 @@ python src/main.py http://example.com -p 5000 -t 10
 1. Loads and checks proxies from `proxy_list.txt`.
 2. Detects if the target supports GET or POST requests.
 3. Launches multiple threads to send requests, each using a random working proxy.
-4. Displays real-time progress and status codes for each request.
+
+![alt text](data/2.png)
+![alt text](data/3.png)
+![alt text](data/4.png)
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
