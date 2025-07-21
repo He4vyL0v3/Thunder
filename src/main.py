@@ -19,12 +19,12 @@ method = None
 def check_target(target_url, proxies):
     global method
     try:
-        test_resp = requests.get(target_url, proxies=proxies, verify=False)
+        test_resp = requests.get(target_url, proxies=proxies)
         if test_resp.status_code == 200:
             method = "GET"
             return True
         else:
-            test_resp_post = requests.post(target_url, proxies=proxies, verify=False)
+            test_resp_post = requests.post(target_url, proxies=proxies)
             if test_resp_post.status_code == 200:
                 method = "POST"
                 return True
@@ -42,9 +42,9 @@ def send_request(i, target_url, proxy_list):
         uagent = get_random_uagent()
         proxy = get_random_proxy(proxy_list)
         if method == "GET":
-            resp = requests.get(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent}, verify=False)
+            resp = requests.get(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent})
         else:
-            resp = requests.post(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent}, verify=False)
+            resp = requests.post(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent})
         return resp.status_code
     except Exception as e:
         return str(e)
