@@ -19,12 +19,12 @@ method = None
 def check_target(target_url, proxies):
     global method
     try:
-        test_resp = requests.get(target_url, proxies=proxies)
+        test_resp = requests.get(target_url, proxies=proxies, verify=False)
         if test_resp.status_code == 200:
             method = "GET"
             return True
         else:
-            test_resp_post = requests.post(target_url, proxies=proxies)
+            test_resp_post = requests.post(target_url, proxies=proxies, verify=False)
             if test_resp_post.status_code == 200:
                 method = "POST"
                 return True
@@ -42,9 +42,9 @@ def send_request(i, target_url, proxy_list):
         uagent = get_random_uagent()
         proxy = get_random_proxy(proxy_list)
         if method == "GET":
-            resp = requests.get(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent})
+            resp = requests.get(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent}, verify=False)
         else:
-            resp = requests.post(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent})
+            resp = requests.post(target_url, proxies=proxy, timeout=2, headers={"User-Agent": uagent}, verify=False)
         return resp.status_code
     except Exception as e:
         return str(e)
@@ -85,4 +85,3 @@ if __name__ == "__main__":
                     )
                 else:
                     tqdm.write(Fore.RED + f"Status code for {args.target} - {status} - {method}")
-
