@@ -1,44 +1,59 @@
 # Thunder
 
-![alt text](data/1.png)
+Thunder is a multi-threaded network stress-testing tool for HTTP and network-layer attacks. It is designed for developers and security researchers to test the resilience of their own services. Thunder now supports simultaneous execution of multiple attack types and logs all progress and results via Python's logging module.
 
-> Thunder is a multi-threaded HTTP load testing tool designed for stress-testing web services. It supports proxy rotation, automatic method detection (GET/POST), and provides real-time progress feedback. This tool is intended for developers and security researchers to test the resilience of their own services.
+## Features
+- Simultaneous execution of:
+  - HTTP Flood (multi-threaded GET requests)
+  - SYN Flood (TCP SYN packets, requires root)
+  - UDP Flood (UDP packet spam)
+  - ICMP Flood (Ping flood, requires root)
+  - Slowloris (many slow HTTP connections)
+- All progress and results are logged via logging
+- Threaded execution for each attack type
+- Randomized User-Agent for HTTP requests
+- Simple CLI interface
+
+## Requirements
+- Python 3.7+
+- scapy (for SYN/ICMP attacks)
+- Root privileges for SYN and ICMP attacks
+- Linux recommended
+
 
 ## Usage
-Run the tool from the command line:
 ```sh
-python src/main.py <target_url> [options]
+sudo python3 src/main.py <target_url> -p <total_packets> -t <threads>
 ```
-
-### Arguments
-- `target_url` (required): The URL of the target service to test.
-- `-p`, `--packages`: Number of requests to send (default: 10000)
-- `-t`, `--threads`: Number of concurrent threads (default: 1)
+- `<target_url>`: Target URL (http or https)
+- `-p`, `--packages`: Total number of packets/requests (will be split between attacks, default: 1000)
+- `-t`, `--threads`: Number of threads per attack (default: 10)
 
 ### Example
 ```sh
-python src/main.py https://example.com -p 5000 -t 10
+sudo python3 src/main.py https://example.com -p 10000 -t 20
 ```
 
-## Proxy Support
-- Place your proxies in `src/proxy_list.txt`, one per line, in the format:
-  ```
-  ip:port
-  ```
-- Both HTTP and HTTPS proxies are supported.
-- The tool will automatically check proxies for availability before use.
-
 ## How it works
-1. Loads and checks proxies from `proxy_list.txt`.
-2. Detects if the target supports GET or POST requests.
-3. Launches multiple threads to send requests, each using a random working proxy.
+- The total number of packets/requests is divided equally among all attack types.
+- Each attack runs in its own thread pool.
+- All progress and results are output via logging.
+- HTTP Flood uses randomized User-Agent for each request.
 
-![alt text](data/2.png)
-![alt text](data/3.png)
-![alt text](data/4.png)
+## Attack Types
+- **HTTP Flood**: Multi-threaded HTTP GET requests.
+- **SYN Flood**: Sends raw TCP SYN packets (requires root, scapy).
+- **UDP Flood**: Sends UDP packets to the target port.
+- **ICMP Flood**: Sends ICMP Echo (ping) packets (requires root, scapy).
+- **Slowloris**: Opens many slow HTTP connections and periodically sends headers.
+
+## Limitations
+- SYN and ICMP attacks require root privileges and scapy.
+- DNS/NTP amplification not implemented.
+- For legal use only (see disclaimer).
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT License. See [LICENSE](LICENSE).
 
 ## Disclaimer
 This tool is intended for legal use only, such as testing your own services or with explicit permission. The author is not responsible for any misuse.
