@@ -1,12 +1,8 @@
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
 import socket
-import ssl
-import random
-import time
 from urllib.parse import urlparse
-from colorama import Fore, init
+from colorama import init
 from banner import logo
 from scapy.all import IP, TCP, ICMP, UDP, send
 from uagents import get_random_uagent
