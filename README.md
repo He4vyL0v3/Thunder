@@ -4,6 +4,11 @@
 
 Thunder is a multi-threaded network stress-testing tool for HTTP and network-layer attacks. It is designed for developers and security researchers to test the resilience of their own services. Thunder now supports simultaneous execution of multiple attack types and logs all progress and results via Python's logging module.
 
+
+![alt text](data/2.png)
+![alt text](data/3.png)
+![alt text](data/4.png)
+
 ## Features
 - Simultaneous execution of:
   - HTTP Flood (multi-threaded GET requests)
@@ -41,7 +46,6 @@ sudo python3 src/main.py https://example.com -p 10000 -t 20
 - Each attack runs in its own thread pool.
 - All progress and results are output via logging.
 - HTTP Flood uses randomized User-Agent for each request.
-
 
 ## Attack Types
 - **HTTP Flood**: Multi-threaded HTTP GET requests.
