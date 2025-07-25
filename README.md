@@ -1,9 +1,11 @@
 # Thunder
 
-![alt text](data/1.png)
+<img src="./data/header.png" width="200px" align="right">
 
+<br><br>
 Thunder is a multi-threaded network stress-testing tool for HTTP and network-layer attacks. It is designed for developers and security researchers to test the resilience of their own services. Thunder now supports simultaneous execution of multiple attack types and logs all progress and results via Python's logging module.
 
+<br><br><br>
 
 ![alt text](data/2.png)
 ![alt text](data/3.png)
