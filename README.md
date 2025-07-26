@@ -1,11 +1,12 @@
+<br><br>
+
 # Thunder
 
 <img src="./data/header.png" width="200px" align="right">
 
 <br><br>
-Thunder is a multi-threaded network stress-testing tool for HTTP and network-layer attacks. It is designed for developers and security researchers to test the resilience of their own services. Thunder now supports simultaneous execution of multiple attack types and logs all progress and results via Python's logging module.
-
-<br><br><br>
+Thunder is a multi-threaded network stress-testing tool and network-layer attacks. It is designed for developers and security researchers to test the resilience of their own services. Thunder now supports simultaneous execution of multiple attack types.
+<br><br><br><br><br><br>
 
 ![alt text](data/2.png)
 ![alt text](data/3.png)
@@ -32,15 +33,20 @@ Thunder is a multi-threaded network stress-testing tool for HTTP and network-lay
 
 ## Usage
 ```sh
-sudo python3 src/main.py <target_url> -p <total_packets> -t <threads>
+sudo python3 src/main.py <target_url> -p <total_packets> -t <threads> <attack type>
 ```
 - `<target_url>`: Target URL (http or https)
 - `-p`, `--packages`: Total number of packets/requests (will be split between attacks, default: 1000)
 - `-t`, `--threads`: Number of threads per attack (default: 10)
+- `--https`: Use https flood
+- `--syn`: Use SYN flood
+- `--udp`: Use UDP flood
+- `--icmp`: Use ICMP flood
+- `--slowloris`: Use slowloris flood
 
 ### Example
 ```sh
-sudo python3 src/main.py https://example.com -p 10000 -t 20
+sudo python3 src/main.py https://example.com -p 10000 -t 20 --udp
 ```
 
 ## How it works
