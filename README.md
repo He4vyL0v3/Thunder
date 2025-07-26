@@ -1,10 +1,9 @@
 <br><br>
 
-# Thunder
-
 <img src="./data/header.png" width="200px" align="right">
+<br>
 
-<br><br>
+### Thunder
 Thunder is a multi-threaded network stress-testing tool and network-layer attacks. It is designed for developers and security researchers to test the resilience of their own services. Thunder now supports simultaneous execution of multiple attack types.
 <br><br><br><br><br><br>
 
